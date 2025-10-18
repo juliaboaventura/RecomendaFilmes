@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Seen and now</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center" style="background-color: #EBD592;">
+<div class="container mx-auto p-4 max-w-2xl">
+    <!-- Cabeçalho -->
+    <div class="bg-white p-4 rounded-lg shadow-md mb-6 flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Avaliação de Filmes</h1>
+        <div class="text-sm text-gray-600">
+            Usuário: <span id="username-display" class="font-semibold"></span>
+        </div>
+    </div>
+
+    <!-- Área de Avaliação -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-lg font-semibold mb-4">Avaliar Filme</h2>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
+                Selecione um filme:
+            </label>
+            <select 
+                id="filme-select" 
+                class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+                <option value="">Carregando filmes...</option>
+            </select>
+        </div>
+
+        <div id="rating-container" class="mb-4 hidden">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
+                Nota (1 a 5):
+            </label>
+            <div class="flex gap-2">
+                <button onclick="selecionarNota(1)" class="rating-btn flex-1 p-3 border rounded hover:bg-blue-100">1</button>
+                <button onclick="selecionarNota(2)" class="rating-btn flex-1 p-3 border rounded hover:bg-blue-100">2</button>
+                <button onclick="selecionarNota(3)" class="rating-btn flex-1 p-3 border rounded hover:bg-blue-100">3</button>
+                <button onclick="selecionarNota(4)" class="rating-btn flex-1 p-3 border rounded hover:bg-blue-100">4</button>
+                <button onclick="selecionarNota(5)" class="rating-btn flex-1 p-3 border rounded hover:bg-blue-100">5</button>
+            </div>
+        </div>
+
+        <button 
+            id="btn-avaliar"
+            onclick="avaliarFilme()" 
+            class="w-full text-white p-3 rounded font-semibold transition hidden"
+            style="background-color: #4F2621;"
+            onmouseover="this.style.backgroundColor='#3a1c18'"
+            onmouseout="this.style.backgroundColor='#4F2621'"
+        >
+            Salvar Avaliação
+        </button>
+
+        <div id="mensagem-avaliacao" class="mt-4 p-3 rounded hidden"></div>
+    </div>
+
+    <!-- Área de Recomendação -->
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-lg font-semibold mb-4">Recomendação</h2>
+        
+        <button 
+            onclick="recomendarFilme()" 
+            class="w-full text-white p-3 rounded font-semibold transition"
+            style="background-color: #4F2621;"
+            onmouseover="this.style.backgroundColor='#3a1c18'"
+            onmouseout="this.style.backgroundColor='#4F2621'"
+        >
+            Recomendar um Filme
+        </button>
+
+        <div id="recomendacao-resultado" class="mt-4 p-4 bg-gray-50 rounded hidden">
+            <p class="text-sm text-gray-600 mb-3 font-semibold">🎬 Filmes Recomendados:</p>
+            <div id="lista-recomendacoes" class="space-y-2"></div>
+        </div>
+
+        <div id="mensagem-recomendacao" class="mt-4 p-3 rounded hidden"></div>
+    </div>
+</div>
+
+<script>
+    let currentUser = '';
+    let notaSelecionada = 0;
+    let filmes = [];
+
+    // Verificar se usuário está logado
+    function verificarLogin() {
+        currentUser = sessionStorage.getItem('currentUser');
+        if (!currentUser) {
+            window.location.href = '/login.html';
+            return;
+        }
+        document.getElementById('username-display').textContent = currentUser;
+    }
+
+    // Carregar lista de filmes
+    async function carregarFilmes() {
+        try {
+            const response = await fetch('/api/filmes');
+            filmes = await response.json();
+            
+            const select = document.getElementById('filme-select');
+            select.innerHTML = '<option value="">Selecione um filme...</option>';
+            
+            filmes.forEach(filme => {
+                const option = document.createElement('option');
+                option.value = filme.id.low || filme.id;
+                option.textContent = filme.nome;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Erro ao carregar filmes:', error);
+            alert('Erro ao carregar filmes');
+        }
+    }
+
+    // Quando seleciona um filme, mostra as opções de nota
+    document.getElementById('filme-select').addEventListener('change', function() {
+        const filmeId = this.value;
+        if (filmeId) {
+            document.getElementById('rating-container').classList.remove('hidden');
+            notaSelecionada = 0;
+            document.querySelectorAll('.rating-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white');
+            });
+            document.getElementById('btn-avaliar').classList.add('hidden');
+        } else {
+            document.getElementById('rating-container').classList.add('hidden');
+            document.getElementById('btn-avaliar').classList.add('hidden');
+        }
+    });
+
+    // Selecionar nota
+    function selecionarNota(nota) {
+        notaSelecionada = nota;
+        
+        // Destacar botão selecionado
+        document.querySelectorAll('.rating-btn').forEach((btn, index) => {
+            if (index + 1 === nota) {
+                btn.classList.add('bg-blue-500', 'text-white');
+            } else {
+                btn.classList.remove('bg-blue-500', 'text-white');
+            }
+        });
+        
+        // Mostrar botão de salvar
+        document.getElementById('btn-avaliar').classList.remove('hidden');
+    }
+
+    // Avaliar filme
+    async function avaliarFilme() {
+        const filmeId = document.getElementById('filme-select').value;
+        
+        if (!filmeId || !notaSelecionada) {
+            mostrarMensagem('avaliacao', 'Selecione um filme e uma nota', 'erro');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/avaliar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentUser,
+                    movieId: parseInt(filmeId),
+                    rating: notaSelecionada
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                mostrarMensagem('avaliacao', 'Avaliação salva com sucesso!', 'sucesso');
+                
+                // Resetar formulário
+                document.getElementById('filme-select').value = '';
+                document.getElementById('rating-container').classList.add('hidden');
+                document.getElementById('btn-avaliar').classList.add('hidden');
+                notaSelecionada = 0;
+            } else {
+                mostrarMensagem('avaliacao', data.error || 'Erro ao salvar avaliação', 'erro');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            mostrarMensagem('avaliacao', 'Erro ao conectar com o servidor', 'erro');
+        }
+    }
+
+    // Recomendar filme
+    async function recomendarFilme() {
+        try {
+            const response = await fetch('/api/recomendar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.recomendacoes && data.recomendacoes.length > 0) {
+                const listaDiv = document.getElementById('lista-recomendacoes');
+                listaDiv.innerHTML = '';
+                
+                data.recomendacoes.forEach((filme, index) => {
+                    const filmeDiv = document.createElement('div');
+                    filmeDiv.className = 'p-3 bg-white rounded border-2 transition';
+                    filmeDiv.style.borderColor = '#4F2621';
+                    filmeDiv.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-blue-600 font-semibold">${index + 1}.</span>
+                                <span class="font-medium" style="color: #4F2621;">${filme.titulo}</span>
+                            </div>
+                            <span class="text-xs text-gray-500">${filme.avaliacoes} avaliações</span>
+                        </div>
+                    `;
+                    listaDiv.appendChild(filmeDiv);
+                });
+                
+                document.getElementById('recomendacao-resultado').classList.remove('hidden');
+                document.getElementById('mensagem-recomendacao').classList.add('hidden');
+            } else {
+                document.getElementById('recomendacao-resultado').classList.add('hidden');
+                mostrarMensagem('recomendacao', data.message || 'Não foi possível gerar recomendação', 'aviso');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            mostrarMensagem('recomendacao', 'Erro ao gerar recomendação', 'erro');
+        }
+    }
+
+    // Mostrar mensagens
+    function mostrarMensagem(tipo, texto, categoria) {
+        const mensagemDiv = document.getElementById(`mensagem-${tipo}`);
+        mensagemDiv.textContent = texto;
+        mensagemDiv.className = 'mt-4 p-3 rounded';
+        
+        if (categoria === 'sucesso') {
+            mensagemDiv.className += ' bg-green-100 text-green-700 border border-green-400';
+        } else if (categoria === 'aviso') {
+            mensagemDiv.className += ' bg-yellow-100 text-yellow-700 border border-yellow-400';
+        } else {
+            mensagemDiv.className += ' bg-red-100 text-red-700 border border-red-400';
+        }
+        
+        mensagemDiv.classList.remove('hidden');
+        
+        // Esconder mensagem após 5 segundos
+        setTimeout(() => {
+            mensagemDiv.classList.add('hidden');
+        }, 5000);
+    }
+
+    // Inicializar ao carregar página
+    verificarLogin();
+    carregarFilmes();
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Seen, and now?</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center" style="background-color: #EBD592;">
+<div class="container mx-auto p-4 max-w-md">
+    <div class="bg-white p-8 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold text-center mb-6">Seen, and now?</h1>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
+                Nome de Usuário
+            </label>
+            <input 
+                type="text" 
+                id="username" 
+                placeholder="Digite seu usuário"
+                class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-gray-700 text-sm font-bold mb-2">
+                Senha
+            </label>
+            <input 
+                type="password" 
+                id="password" 
+                placeholder="Digite sua senha"
+                class="w-full p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+        </div>
+
+        <button 
+            onclick="fazerLogin()" 
+            class="w-full text-white p-3 rounded hover:bg-blue-600 font-semibold" style="background-color: #4F2621;"
+        >
+            Entrar
+        </button>
+
+        <p class="text-sm text-gray-600 text-center mt-4">
+            Se o usuário não existir, será criado automaticamente
+        </p>
+
+        <div id="mensagem" class="mt-4 p-3 rounded hidden"></div>
+    </div>
+</div>
+
+<script>
+    async function fazerLogin() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const mensagemDiv = document.getElementById('mensagem');
+
+        if (!username || !password) {
+            mostrarMensagem('Por favor, preencha usuário e senha', 'erro');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                mostrarMensagem('Login realizado com sucesso! Redirecionando...', 'sucesso');
+                
+                // Salvar usuário na memória (localStorage não funciona em artifacts)
+                sessionStorage.setItem('currentUser', username);
+                
+                // Redirecionar para tela principal após 1 segundo
+                setTimeout(() => {
+                    window.location.href = '/index.html';
+                }, 1000);
+            } else {
+                mostrarMensagem(data.error || 'Erro ao fazer login', 'erro');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            mostrarMensagem('Erro ao conectar com o servidor', 'erro');
+        }
+    }
+
+    function mostrarMensagem(texto, tipo) {
+        const mensagemDiv = document.getElementById('mensagem');
+        mensagemDiv.textContent = texto;
+        mensagemDiv.className = 'mt-4 p-3 rounded';
+        
+        if (tipo === 'sucesso') {
+            mensagemDiv.className += ' bg-green-100 text-green-700 border border-green-400';
+        } else {
+            mensagemDiv.className += ' bg-red-100 text-red-700 border border-red-400';
+        }
+        
+        mensagemDiv.classList.remove('hidden');
+    }
+
+    // Permitir login ao apertar Enter
+    document.getElementById('password').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            fazerLogin();
+        }
+    });
+</script>
+</body>
+</html>
