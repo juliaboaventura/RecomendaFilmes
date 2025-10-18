@@ -1,12 +1,17 @@
 const express = require('express');
 const cors = require('cors');
+// 1. Importar o módulo 'path'
+const path = require('path');
 require('dotenv').config();
 const neo4j = require('neo4j-driver');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// 2. CORREÇÃO: Usar path.join para garantir o caminho absoluto correto para arquivos estáticos
+// A PASTA 'public' FOI REMOVIDA AQUI, pois os arquivos estáticos (HTML, CSS, JS) estão na raiz.
+app.use(express.static(__dirname));
 
 // Configurar conexão com Neo4j
 const driver = neo4j.driver(
@@ -47,7 +52,7 @@ app.post('/api/login', async (req, res) => {
         // Busca ou cria o usuário
         const result = await session.run(
             `MERGE (u:User {name: $username, password: $password})
-             RETURN u.name as username, u.userId as userId`,
+            RETURN u.name as username, ID(u) as userId`, // Use ID(u) se u.userId não for definido
             { username, password }
         );
         
@@ -107,10 +112,10 @@ app.post('/api/avaliar', async (req, res) => {
     try {
         await session.run(
             `MATCH (u:User {name: $username})
-             MATCH (m:Movie {movieId: $movieId})
-             MERGE (u)-[r:RATED]->(m)
-             SET r.rating = $rating, r.timestamp = timestamp()
-             RETURN m.title as filme, r.rating as nota`,
+            MATCH (m:Movie {movieId: $movieId})
+            MERGE (u)-[r:RATED]->(m)
+            SET r.rating = $rating, r.timestamp = timestamp()
+            RETURN m.title as filme, r.rating as nota`,
             { username, movieId: neo4j.int(movieId), rating: neo4j.int(rating) }
         );
         
@@ -138,33 +143,33 @@ app.post('/api/recomendar', async (req, res) => {
     try {
         const result = await session.run(
             `MATCH (u:User {name: $username})-[r1:RATED]->(m1:Movie)-[:HAS_GENRE]->(g:Genre)
-             WHERE r1.rating >= 4
-             WITH g, COUNT(*) as generoFrequencia
-             ORDER BY generoFrequencia DESC
-             LIMIT 1
-             
-             MATCH (g)<-[:HAS_GENRE]-(m2:Movie)
-             WHERE NOT EXISTS {
-                 MATCH (u2:User {name: $username})-[:RATED]->(m2)
-             }
-             
-             OPTIONAL MATCH (other:User)-[r2:RATED]->(m2)
-             WHERE r2.rating >= 4
-             
-             WITH m2, generoFrequencia,
-                  COUNT(DISTINCT other) as numAvaliacoes,
-                  AVG(r2.rating) as mediaNotas
-             
-             WITH m2,
-                  (6.0 - COALESCE(mediaNotas, 3.0)) - (generoFrequencia * 2.0) as custoTotal,
-                  numAvaliacoes
-             
-             RETURN m2.title as titulo, 
-                    m2.movieId as id,
-                    custoTotal,
-                    numAvaliacoes
-             ORDER BY custoTotal ASC, numAvaliacoes DESC
-             LIMIT 5`,
+            WHERE r1.rating >= 4
+            WITH g, COUNT(*) as generoFrequencia
+            ORDER BY generoFrequencia DESC
+            LIMIT 1
+            
+            MATCH (g)<-[:HAS_GENRE]-(m2:Movie)
+            WHERE NOT EXISTS {
+                MATCH (u2:User {name: $username})-[:RATED]->(m2)
+            }
+            
+            OPTIONAL MATCH (other:User)-[r2:RATED]->(m2)
+            WHERE r2.rating >= 4
+            
+            WITH m2, generoFrequencia,
+                 COUNT(DISTINCT other) as numAvaliacoes,
+                 AVG(r2.rating) as mediaNotas
+            
+            WITH m2,
+                 (6.0 - COALESCE(mediaNotas, 3.0)) - (generoFrequencia * 2.0) as custoTotal,
+                 numAvaliacoes
+            
+            RETURN m2.title as titulo, 
+                   m2.movieId as id,
+                   custoTotal,
+                   numAvaliacoes
+            ORDER BY custoTotal ASC, numAvaliacoes DESC
+            LIMIT 5`,
             { username }
         );
         
@@ -196,10 +201,22 @@ app.post('/api/recomendar', async (req, res) => {
 
 // ============ ROTAS DE PÁGINAS ============
 
-// Página de login
+// Página de login (Rota principal '/')
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/login.html');
+    // CORREÇÃO: Caminho alterado para a raiz do projeto (não mais 'public')
+    const loginPath = path.join(__dirname, 'login.html');
+    console.log(`[DEBUG] Tentando servir: ${loginPath}`);
+    res.sendFile(loginPath);
 });
+
+// Página de login (Rota explícita '/login.html' para evitar o erro Cannot GET)
+app.get('/login.html', (req, res) => {
+    // CORREÇÃO: Caminho alterado para a raiz do projeto (não mais 'public')
+    const loginPath = path.join(__dirname, 'login.html');
+    console.log(`[DEBUG] Tentando servir (rota explícita): ${loginPath}`);
+    res.sendFile(loginPath);
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
