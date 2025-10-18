@@ -13,13 +13,13 @@ const driver = neo4j.driver(
     process.env.NEO4J_URI || 'bolt://localhost:7687',
     neo4j.auth.basic(
         process.env.NEO4J_USER || 'neo4j',
-        process.env.NEO4J_PASSWORD || 'sua_senha'
+        process.env.NEO4J_PASSWORD || 'jMtAWB12f1YObU_3prBNUKIzBuciRF5HZHEMffiVo1g'
     )
 );
 
 // Testar conexão ao iniciar
 async function testarConexao() {
-    const session = driver.session({ database: 'movies' });
+    const session = driver.session({ database: 'neo4j' });
     try {
         const result = await session.run('RETURN "Conexão OK!" as message');
         console.log('✅ Conectado ao Neo4j:', result.records[0].get('message'));
@@ -42,7 +42,7 @@ app.post('/api/login', async (req, res) => {
         return res.status(400).json({ error: 'Username e senha são obrigatórios' });
     }
     
-    const session = driver.session({ database: 'movies' });
+    const session = driver.session({ database: 'neo4j' });
     try {
         // Busca ou cria o usuário
         const result = await session.run(
@@ -73,7 +73,7 @@ app.post('/api/login', async (req, res) => {
 
 // Buscar TODOS os filmes (para o dropdown)
 app.get('/api/filmes', async (req, res) => {
-    const session = driver.session({ database: 'movies' });
+    const session = driver.session({ database: 'neo4j' });
     try {
         const result = await session.run(
             'MATCH (m:Movie) RETURN m.title as nome, m.movieId as id ORDER BY m.title'
@@ -103,7 +103,7 @@ app.post('/api/avaliar', async (req, res) => {
         return res.status(400).json({ error: 'Dados inválidos' });
     }
     
-    const session = driver.session({ database: 'movies' });
+    const session = driver.session({ database: 'neo4j' });
     try {
         await session.run(
             `MATCH (u:User {name: $username})
@@ -134,7 +134,7 @@ app.post('/api/recomendar', async (req, res) => {
         return res.status(400).json({ error: 'Username é obrigatório' });
     }
     
-    const session = driver.session({ database: 'movies' });
+    const session = driver.session({ database: 'neo4j' });
     try {
         const result = await session.run(
             `MATCH (u:User {name: $username})-[r1:RATED]->(m1:Movie)-[:HAS_GENRE]->(g:Genre)
